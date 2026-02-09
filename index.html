@@ -62,8 +62,8 @@
 <script>
 /* ===== 고정 색상 ===== */
 const COLOR_MAP = {
-  2024: "#1f77b4", // 파란색
-  2025: "#ff7f0e"  // 주황색
+  2024: "#1f77b4",
+  2025: "#ff7f0e"
 };
 
 let DATA = null;
@@ -185,16 +185,14 @@ function renderNameBar(dept, years, topN) {
 
     traces.push({
       type: "bar",
-      // ✅ 범례에 평균 포함
       name: `${y} (평균: ${mval.toFixed(1)}건)`,
       x: order,
       y: vals,
       marker: { color: COLOR_MAP[y] || "#888" },
-      // ✅ 평균선 draw용 원본 유지
-      customdata: { year: y, mean: mval }
+      // ✅ hover에 평균/커스텀데이터가 나오지 않도록 고정
+      hovertemplate: "%{x}<br>%{y}건<extra></extra>"
     });
 
-    // ✅ 평균선(점선)만 추가
     shapesTrend.push(hlineShape(mval, COLOR_MAP[y] || "#888", order.length));
   }
 
@@ -204,7 +202,6 @@ function renderNameBar(dept, years, topN) {
     xaxis: { title: "성명", tickangle: -45 },
     yaxis: { title: "건수", rangemode: "tozero" },
     shapes: shapesTrend,
-    // ✅ 평균 텍스트 annotation 제거
     annotations: [],
     margin: { l:40, r:40, t:60, b:160 },
     legend: {}
@@ -258,12 +255,12 @@ function renderApproverTime(dept, years, topN) {
 
     traces.push({
       type: "bar",
-      // ✅ 범례에 평균 포함
       name: `${y} (평균: ${mval.toFixed(1)}일)`,
       x: order,
       y: vals,
       marker: { color: COLOR_MAP[y] || "#888" },
-      customdata: { year: y, mean: mval }
+      // ✅ hover 고정
+      hovertemplate: "%{x}<br>%{y}일<extra></extra>"
     });
 
     shapesAppr.push(hlineShape(mval, COLOR_MAP[y] || "#888", order.length));
@@ -330,15 +327,14 @@ function render() {
 
     traces.push({
       type: "bar",
-      // ✅ 범례에 평균 포함
       name: `${yNum} (평균: ${mval.toFixed(1)}건)`,
       x: x,
       y: yVals,
       marker: { color: COLOR_MAP[yNum] || "#888" },
-      customdata: { year: yNum, mean: mval }
+      // ✅ hover 고정
+      hovertemplate: "%{x}<br>%{y}건<extra></extra>"
     });
 
-    // ✅ 평균선(점선)
     shapesBar.push(hlineShape(mval, COLOR_MAP[yNum] || "#888", x.length));
   }
 
@@ -348,7 +344,6 @@ function render() {
     xaxis: { title: "과제", tickangle: 45 },
     yaxis: { title: "문서 건수", rangemode: "tozero" },
     shapes: shapesBar,
-    // ✅ 평균 텍스트 annotation 제거
     annotations: [],
     margin: { l:40, r:40, t:80, b:160 },
     legend: {}
@@ -406,25 +401,19 @@ async function init() {
 
   const deptSearchEl = document.getElementById("deptSearch");
 
-// 엔터 누를 때만 검색 적용 (그 전까지 페이지/차트 변화 없음)
-deptSearchEl.addEventListener("keydown", (e) => {
-  if (e.key !== "Enter") return;
+  // 엔터 누를 때만 검색 적용
+  deptSearchEl.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    updateDeptOptions(deptSearchEl.value);
+    render();
+  });
 
-  e.preventDefault();
-
-  // 엔터 시점에만 옵션 갱신 + 렌더
-  updateDeptOptions(deptSearchEl.value);
-
-  // 검색 결과가 있으면 현재 선택부서가 바뀔 수 있으니 렌더
-  render();
-});
-
-// (선택) ESC 누르면 검색어 지우고 전체 부서로 복구도 엔터 없이 즉시 안 바뀌게 하려면,
-// 아래처럼 ESC에서도 "지우기만" 하고 적용은 Enter로 유지
-deptSearchEl.addEventListener("keydown", (e) => {
-  if (e.key !== "Escape") return;
-  deptSearchEl.value = "";
-});
+  // ESC 누르면 검색어만 지움(적용은 Enter)
+  deptSearchEl.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    deptSearchEl.value = "";
+  });
 
   document.getElementById("dept").addEventListener("change", render);
 
