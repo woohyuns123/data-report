@@ -257,6 +257,7 @@ function renderNameBar(dept, years, topN) {
 }
 
 /* ===== 최종결재자별 결재시간(approver) ===== */
+/* ===== 최종결재자별 결재시간(approver) ===== */
 function renderApproverTime(dept, years, topN) {
   const deptTrim = String(dept || "").trim();
   const yrSet = new Set(years.map(Number));
@@ -273,32 +274,43 @@ function renderApproverTime(dept, years, topN) {
     return;
   }
 
-  const sumCnt = new Map(); // approver -> total count
-  const m = new Map();      // approver||year -> avg
+  // ✅ 정렬 기준을 "평균 결재시간(가중평균)"으로 만들기
+  const sumCnt = new Map();      // approver -> total count
+  const sumTime = new Map();     // approver -> sum(avg * cnt)
+  const perYearAvg = new Map();  // approver||year -> avg (표시용)
 
   for (const r of rows) {
     const a = String(r["최종결재자"]).trim();
     const y = Number(r["연도"]);
     const cnt = Number(r["건수"]) || 0;
     const avg = Number(r["평균"]) || 0;
+
+    perYearAvg.set(a + "||" + y, avg);
+
     sumCnt.set(a, (sumCnt.get(a) || 0) + cnt);
-    m.set(a + "||" + y, avg);
+    sumTime.set(a, (sumTime.get(a) || 0) + (avg * cnt));
   }
 
-  const order = Array.from(sumCnt.entries())
+  // ✅ 최종결재자별 선택연도 가중평균(건수 가중)
+  const overallAvg = new Map(); // approver -> weighted avg
+  for (const [a, cnt] of sumCnt.entries()) {
+    const t = sumTime.get(a) || 0;
+    overallAvg.set(a, cnt > 0 ? (t / cnt) : 0);
+  }
+
+  // ✅ 내림차순: 평균 결재시간(가중평균) 기준
+  const order = Array.from(overallAvg.entries())
     .sort((a,b)=> (b[1]-a[1]) || String(a[0]).localeCompare(String(b[0])))
     .slice(0, Number(topN))
     .map(x=>x[0]);
 
   const traces = [];
   const shapesAppr = [];
-
   const yearOrder = (DATA.years || []).filter(y => yrSet.has(y));
-
   const allValsForTicks = [];
 
   for (const y of yearOrder) {
-    const vals = order.map(a => m.get(a + "||" + y) || 0);
+    const vals = order.map(a => perYearAvg.get(a + "||" + y) || 0);
     allValsForTicks.push(...vals);
 
     const mval = mean(vals);
@@ -334,6 +346,7 @@ function renderApproverTime(dept, years, topN) {
     margin: { l:40, r:40, t:60, b:170 }
   }, { responsive: true });
 }
+
 
 /* ===== 전체 렌더 ===== */
 function render() {
@@ -509,3 +522,4 @@ init().catch(err => {
   <script src="./nav.js"></script>
 </body>
 </html>
+
