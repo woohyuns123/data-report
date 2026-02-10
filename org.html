@@ -192,11 +192,23 @@ const WC_GAMMA = 2.25;    // 클수록 상위 가중 더 커짐(Top20에서 체�
 const WC_BOOST_TOPK = 3;
 const WC_BOOST_MULT = [2.8, 1.9, 1.35]; // Top1/2/3
 
+<script>
 document.addEventListener("DOMContentLoaded", () => {
-  fetch("data2.json", { cache: "no-store" })
-    .then(r => r.json())
+  fetch("data2.json", { cache: "no-store", headers: { "Accept": "application/json" } })
+    .then(async r => {
+      if (!r.ok) {
+        const t = await r.text();
+        throw new Error(`HTTP ${r.status} for data2.json\n${t.slice(0,200)}`);
+      }
+      const ct = r.headers.get("content-type") || "";
+      if (!ct.includes("application/json")) {
+        const t = await r.text();
+        throw new Error(`Not JSON (content-type=${ct})\n${t.slice(0,200)}`);
+      }
+      return r.json();
+    })
     .then(data => {
-      RAW = data;
+      window.RAW = data;   // 전역으로 쓸 거면 명시적으로 window에
       buildMappings();
       initOptions();
       drawWordcloud();
@@ -204,6 +216,8 @@ document.addEventListener("DOMContentLoaded", () => {
     })
     .catch(err => console.error(err));
 });
+</script>
+
 
 function buildMappings() {
   bureauToDepts = new Map();
