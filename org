@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="ko">
+<head>https://github.com/woohyuns123/data-report/tree/main
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>조직별 분석</title>
+
+<script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+<script>
+fetch("data2.json.gz")
+  .then(r => r.arrayBuffer())
+  .then(buf => {
+    const decompressed = pako.inflate(new Uint8Array(buf), { to: "string" });
+    const data = JSON.parse(decompressed);
+    console.log(data);
+  });
+</script>
+
+
+<style>
+  body { font-family: Arial, sans-serif; margin:0; background:#fff; }
+  .wrap { max-width:1200px; margin:24px auto; padding:0 16px; }
+
+  h2 { margin:0 0 12px; font-size:20px; }
+
+  .row { display:flex; gap:40px; flex-wrap:wrap; align-items:flex-start; margin-bottom:10px; }
+  .btn {
+    padding:6px 12px;
+    border:1px solid #ccc;
+    background:#fff;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:13px;
+    user-select:none;
+  }
+  .btn.active { background:#1f77b4; color:#fff; border-color:#1f77b4; }
+
+  .field { display:flex; flex-direction:column; gap:6px; min-width:260px; }
+  label { font-size:12px; color:#555; }
+
+  select, input[type="text"] {
+    padding:8px 10px;
+    border:1px solid #ccc;
+    border-radius:8px;
+    font-size:13px;
+    width:100%;
+    box-sizing:border-box;
+  }
+
+  .hint { font-size:12px; color:#666; margin:6px 0 10px; }
+
+  /* ✅ 여백 줄임 */
+  .block {
+    border:1px solid #eee;
+    border-radius:12px;
+    padding:10px;
+    margin-bottom:14px;
+    background:#fff;
+  }
+
+  /* ✅ 워드클라우드 높이 줄여서 여백 체감 감소 */
+  #wc { display:block; width:100%; height:360px; }
+
+  /* plotly는 div height로 먹음 */
+  #chart { height:360px; }
+
+  .subnote { font-size:12px; color:#666; margin-top:6px; }
+  .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; padding:1px 6px; border:1px solid #ddd; border-radius:6px; background:#fafafa; }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+  <h2>문서 분석 대시보드</h2>
+
+  <!-- 연도 버튼 -->
+  <div class="row" id="yearBtns">
+    <button class="btn active" data-year="전체" type="button">전체</button>
+    <button class="btn" data-year="2024" type="button">2024</button>
+    <button class="btn" data-year="2025" type="button">2025</button>
+  </div>
+
+  <!-- 국/부서 -->
+  <div class="row">
+      <div class="field" style="min-width:290px;">
+      <label>국 검색</label>
+      <input id="bureauSearch" type="text" placeholder="예) 문화행정국" />
+
+      <label style="margin-top:6px;">국 선택</label>
+      <select id="bureauSelect">
+        <option value="">(전체)</option>
+      </select>
+    </div>
+
+    <!-- 부서 -->
+    <div class="field" style="min-width:290px;">
+      <label>부서 검색</label>
+      <input id="deptSearch" type="text" placeholder="예) 문화관광과" />
+
+      <label style="margin-top:6px;">부서 선택</label>
+      <select id="deptSelect">
+        <option value="">(전체)</option>
+    </select>
+  </div>
+
+</div>
+
+  <!-- 지표 버튼 -->
+  <div class="row" id="metricBtns">
+    <button class="btn active" data-metric="내부" type="button">내부</button>
+    <button class="btn" data-metric="외부" type="button">외부</button>
+    <button class="btn" data-metric="공개" type="button">공개건수(대시민)</button>
+    <button class="btn" data-metric="첨부" type="button">첨부문서</button>
+    <button class="btn" data-metric="결재시간" type="button">결재시간(평균)</button>
+  </div>
+
+  <div class="hint">
+    <!-- 선택 우선순위: <b>부서(2차)</b> 선택 시 부서 기준 → 아니면 <b>국(1차)</b> 선택 시 국 기준 → 둘 다 없으면 전체 기준 -->
+  </div>
+
+  <div class="grid-2">
+    <!-- 워드클라우드 -->
+    <div class="block">
+      <canvas id="wc"></canvas>
+      <div class="subnote" id="wcMeta"></div>
+    </div>
+
+    <!-- 월별 차트 -->
+    <div class="block">
+      <div id="chart"></div>
+      <div class="subnote" id="chartMeta"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let RAW = null;
+
+let currentYear = "전체";
+let selectedBureau = "";
+let selectedDept = "";
+let currentMetric = "내부";
+
+let bureauToDepts = new Map();
+let allDepts = [];
+
+/* =========================
+   ✅ 차트/라인 파스텔 컬러
+========================= */
+const HLINE_COLOR = "#E5989B"; // pastel coral
+
+function metricUnit(metric) {
+  if (metric === "결재시간") return "일";
+  if (metric === "내부" || metric === "외부" || metric === "공개" || metric === "첨부") return "건";
+  return "";
+}
+
+
+function metricColor(metric) {
+  if (metric === "내부") return "#A7C7E7";     // pastel blue
+  if (metric === "외부") return "#B8E0C8";     // pastel green
+  if (metric === "공개") return "#FFD6A5";     // pastel orange
+  if (metric === "첨부") return "#D6CDEA";     // pastel purple
+  if (metric === "결재시간") return "#F7B7D2"; // pastel pink
+  return "#A7C7E7";
+}
+
+/* =========================
+   ✅ 워드클라우드 튜닝(Top20에서도 차이 확)
+   - (중요) weightFactor 중복 선언 금지
+========================= */
+const WC_HEIGHT = 360;
+const WC_MIN_FONT = 18;   // 너무 크면 빽빽해짐 → 낮춰서 분포 확보
+const WC_MAX_FONT = 92;   // Top1 확 커지게
+const WC_GAMMA = 2.25;    // 클수록 상위 가중 더 커짐(Top20에서 체감↑)
+const WC_BOOST_TOPK = 3;
+const WC_BOOST_MULT = [2.8, 1.9, 1.35]; // Top1/2/3
+
+document.addEventListener("DOMContentLoaded", () => {
+  fetch("data2.json", { cache: "no-store" })
+    .then(r => r.json())
+    .then(data => {
+      RAW = data;
+      buildMappings();
+      initOptions();
+      drawWordcloud();
+      drawChart();
+    })
+    .catch(err => console.error(err));
+});
+
+function buildMappings() {
+  bureauToDepts = new Map();
+  allDepts = [];
+
+  const yKey = "전체";
+  const deptObj = RAW?.wordcloud_by_dept?.[yKey] || {};
+  const deptNames = Object.keys(deptObj);
+
+  const recs = RAW?.records || [];
+  const hasBureau = recs.length && ("국" in recs[0]);
+  const hasDept = recs.length && ("부서명" in recs[0]);
+
+  const deptToBureau = new Map();
+  if (hasBureau && hasDept) {
+    for (const r of recs) {
+      const b = String(r["국"] ?? "").trim();
+      const d = String(r["부서명"] ?? "").trim();
+      if (!d) continue;
+      if (b) deptToBureau.set(d, b);
+    }
+  }
+
+  allDepts = Array.from(new Set(deptNames)).sort((a,b)=>a.localeCompare(b));
+
+  let bureaus = [];
+  if (RAW?.options?.bureaus && RAW.options.bureaus.length) {
+    bureaus = RAW.options.bureaus.slice();
+  } else {
+    const bObj = RAW?.wordcloud_by_bureau?.[yKey] || {};
+    bureaus = Object.keys(bObj);
+  }
+
+  for (const b of bureaus) bureauToDepts.set(b, []);
+  for (const d of allDepts) {
+    const b = deptToBureau.get(d) || "미분류";
+    if (!bureauToDepts.has(b)) bureauToDepts.set(b, []);
+    bureauToDepts.get(b).push(d);
+  }
+
+  for (const [b, ds] of bureauToDepts.entries()) {
+    bureauToDepts.set(b, Array.from(new Set(ds)).sort((a,c)=>a.localeCompare(c)));
+  }
+
+  if (!RAW.options) RAW.options = {};
+  RAW.options.bureaus = Array.from(bureauToDepts.keys()).sort((a,b)=>a.localeCompare(b));
+  RAW.options.depts = allDepts.slice();
+}
+
+function formatMean(value) {
+  if (!Number.isFinite(value)) return "";
+  return value >= 100
+    ? Math.round(value).toString()
+    : value.toFixed(2);
+}
+
+
+function initOptions() {
+  const bureaus = RAW?.options?.bureaus || [];
+  const bSel = document.getElementById("bureauSelect");
+  const dSel = document.getElementById("deptSelect");
+
+  bSel.innerHTML = `<option value="">(전체)</option>`;
+  for (const b of bureaus) {
+    const opt = document.createElement("option");
+    opt.value = b; opt.textContent = b;
+    bSel.appendChild(opt);
+  }
+
+  rebuildDeptOptions("");
+
+  bSel.addEventListener("change", () => {
+    selectedBureau = bSel.value || "";
+
+    const prevDept = selectedDept;
+    rebuildDeptOptions(selectedBureau);
+
+    const allowed = getAllowedDepts(selectedBureau);
+    if (prevDept && !allowed.includes(prevDept)) {
+      selectedDept = "";
+      dSel.value = "";
+    }
+
+    drawWordcloud();
+    drawChart();
+  });
+
+  dSel.addEventListener("change", () => {
+    selectedDept = dSel.value || "";
+    drawWordcloud();
+    drawChart();
+  });
+
+  document.getElementById("bureauSearch").addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    applySearchToSelect(e.target.value, bSel);
+  });
+
+  document.getElementById("deptSearch").addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    applySearchToSelect(e.target.value, dSel);
+  });
+}
+
+function getAllowedDepts(bureau) {
+  if (!bureau) return allDepts.slice();
+  const list = bureauToDepts.get(bureau);
+  return (list && list.length) ? list.slice() : [];
+}
+
+function rebuildDeptOptions(bureau) {
+  const dSel = document.getElementById("deptSelect");
+  const allowed = getAllowedDepts(bureau);
+
+  dSel.innerHTML = `<option value="">(전체)</option>`;
+  for (const d of allowed) {
+    const opt = document.createElement("option");
+    opt.value = d; opt.textContent = d;
+    dSel.appendChild(opt);
+  }
+}
+
+function applySearchToSelect(query, selectEl) {
+  const q = String(query || "").trim().toLowerCase();
+  if (!q) return;
+
+  const opts = [...selectEl.querySelectorAll("option")].slice(1);
+  const found = opts.find(o => o.value.toLowerCase().includes(q));
+
+  if (found) {
+    selectEl.value = found.value;
+    selectEl.dispatchEvent(new Event("change"));
+  } else {
+    console.warn("No match:", q);
+  }
+}
+
+document.querySelectorAll("#yearBtns .btn").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll("#yearBtns .btn").forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+    currentYear = b.dataset.year;
+    drawWordcloud();
+    drawChart();
+  });
+});
+
+document.querySelectorAll("#metricBtns .btn").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll("#metricBtns .btn").forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+    currentMetric = b.dataset.metric;
+    drawChart();
+  });
+});
+
+function getWordcloudList() {
+  const y = currentYear;
+
+  if (selectedDept) {
+    const list = RAW?.wordcloud_by_dept?.[y]?.[selectedDept];
+    if (list && list.length) return { list, scope: "부서", name: selectedDept };
+  }
+  if (selectedBureau) {
+    const list = RAW?.wordcloud_by_bureau?.[y]?.[selectedBureau];
+    if (list && list.length) return { list, scope: "국", name: selectedBureau };
+  }
+
+  const list = RAW?.wordcloud_global?.[y];
+  return { list: list || [["데이터없음", 1]], scope: "전체", name: "전체" };
+}
+
+/* =========================
+   ✅ WordCloud: 여백 줄이고 Top20 차이 키우기
+   - gridSize를 살짝 키워 과밀 방지
+   - rotateRatio 낮게 유지
+========================= */
+function drawWordcloud() {
+  if (!RAW) return;
+
+  const { list: rawList, scope, name } = getWordcloudList();
+  const canvas = document.getElementById("wc");
+  const meta = document.getElementById("wcMeta");
+
+  const wrapW = Math.max(520, canvas.parentElement.clientWidth);
+  canvas.width = Math.floor(wrapW);
+  canvas.height = WC_HEIGHT;
+
+  let list = (rawList || [])
+    .map(p => [String(p[0] ?? ""), Number(p[1])])
+    .filter(p => p[0] && Number.isFinite(p[1]) && p[1] > 0);
+
+  if (!list.length) list = [["데이터없음", 1]];
+
+  // TopK boost
+  if (WC_BOOST_TOPK > 0) {
+    list = list.map((p, idx) => {
+      if (idx < WC_BOOST_TOPK) {
+        const mult = WC_BOOST_MULT[idx] ?? 1.0;
+        return [p[0], p[1] * mult];
+      }
+      return p;
+    });
+  }
+
+  const weights = list.map(x => x[1]);
+  const wMin = Math.min(...weights);
+  const wMax = Math.max(...weights);
+
+  function weightFactor(w) {
+    if (!Number.isFinite(w) || w <= 0) return WC_MIN_FONT;
+    const t = (w - wMin) / Math.max(1e-9, (wMax - wMin)); // 0..1
+    return WC_MIN_FONT + Math.pow(t, WC_GAMMA) * (WC_MAX_FONT - WC_MIN_FONT);
+  }
+
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const gridSize = Math.max(8, Math.floor(canvas.width / 130)); // 과밀 방지
+
+  requestAnimationFrame(() => {
+    WordCloud(canvas, {
+      list,
+      gridSize: Math.max(4, Math.floor(canvas.width / 200)),
+      shrinkToFit: true,
+      drawOutOfBound: false,
+      weightFactor,
+      weightFactor: function (w) {
+        return Math.pow(w, 0.45) * 1.5;
+      },
+      fontFamily: "Malgun Gothic, Arial",
+      backgroundColor: "#fff",
+      color: "random-dark",
+      rotateRatio: 0.02,
+      rotationSteps: 2,
+      drawOutOfBound: false,
+      shrinkToFit: true
+    });
+  });
+
+  
+  meta.textContent =
+    `상위 ${list.length}개`;
+    
+}
+
+window.addEventListener("resize", () => drawWordcloud());
+
+function filteredRecords() {
+  const recs = RAW?.records || [];
+  let out = recs.filter(r => currentYear === "전체" || String(r["연도"]) === String(currentYear));
+
+  const hasBureau = out.length && ("국" in out[0]);
+  const hasDept = out.length && ("부서명" in out[0]);
+
+  if (hasBureau && selectedBureau) {
+    out = out.filter(r => String(r["국"] ?? "").trim() === selectedBureau);
+  }
+  if (hasDept && selectedDept) {
+    out = out.filter(r => String(r["부서명"] ?? "").trim() === selectedDept);
+  }
+  return out;
+}
+
+/* =========================
+   ✅ Plotly: 파스텔 막대 + 평균선 색 통일
+========================= */
+function drawChart() {
+  if (!RAW) return;
+
+  const recs = filteredRecords();
+  const months = [...Array(12)].map((_,i)=>i+1);
+
+  const get = (r, k) => (r && r[k] !== undefined) ? r[k] : null;
+
+  function countByMonth(predicate) {
+    return months.map(m => recs.filter(r => r["월"] === m && predicate(r)).length);
+  }
+
+  let y = [];
+  let yTitle = "";
+
+  if (currentMetric === "내부") {
+    y = countByMonth(r => get(r, "문서상태") === "종료");
+    yTitle = "내부 건수";
+  } else if (currentMetric === "외부") {
+    y = countByMonth(r => get(r, "문서상태") !== "종료");
+    yTitle = "외부 건수";
+  } else if (currentMetric === "공개") {
+    y = countByMonth(r => String(get(r, "공개구분") || "").includes("대시민"));
+    yTitle = "공개(대시민) 건수";
+  } else if (currentMetric === "첨부") {
+    y = countByMonth(r => String(get(r, "붙임파일존재") || "").toUpperCase().includes("Y"));
+    yTitle = "첨부파일 건수";
+  } else if (currentMetric === "결재시간") {
+    y = months.map(m => {
+      const arr = recs
+        .filter(r => r["월"] === m)
+        .map(r => Number(get(r, "결재시간_영업일")))
+        .filter(v => Number.isFinite(v));
+      return arr.length ? (arr.reduce((a,b)=>a+b,0)/arr.length) : null;
+    });
+    yTitle = "결재시간 평균(일)";
+  }
+
+  const yHover = y.map(v => {
+    if (v === null || v === undefined || !Number.isFinite(v)) return "N/A";
+    return (v <= 100) ? v.toFixed(2) : v.toFixed(0);
+  });
+
+
+  const validY = y.filter(v => v !== null && v !== undefined && Number.isFinite(v));
+  const meanY = validY.length ? validY.reduce((a,b)=>a+b,0) / validY.length : null;
+
+  const shapes = (meanY !== null) ? [{
+    type: "line",
+    xref: "paper",
+    x0: 0,
+    x1: 1,
+    y0: meanY,
+    y1: meanY,
+    line: { color: HLINE_COLOR, width: 2, dash: "dash" }
+  }] : [];
+
+  const unit = metricUnit(currentMetric);
+
+  const annotations = (meanY !== null) ? [{
+    xref: "paper",
+    yref: "y",
+    x: 1.02,
+    y: meanY,
+    text: `평균: ${formatMean(meanY)}${unit}`,
+    showarrow: false,
+    font: { color: "red", size: 12 },
+    xanchor: "left"
+  }] : [];
+
+
+  
+
+  Plotly.react("chart", [{
+    type: "bar",
+    x: months,
+    y: y,
+    marker: { color: metricColor(currentMetric) },
+  hovertemplate: `${yTitle}: %{customdata}<extra></extra>`,
+  customdata: yHover
+  }], {
+    margin:{l:60,r:110,t:20,b:40},
+    xaxis: {
+      title: "월",
+      tickmode: "linear",
+      tick0: 1,
+      dtick: 1,
+      tickvals: months,        // [1,2,3,...,12]
+      ticktext: months.map(m => String(m))
+    },
+    yaxis:{title:yTitle, rangemode:"tozero"},
+    shapes,
+    annotations
+  }, {responsive:true});
+
+  const hasBureau = recs.length && ("국" in recs[0]);
+  const hasDept = recs.length && ("부서명" in recs[0]);
+
+  const filterNote = (hasBureau || hasDept)
+    ? ` / 필터: ${selectedBureau ? ("국=" + selectedBureau) : "국=전체"} , ${selectedDept ? ("부서=" + selectedDept) : "부서=전체"}`
+    : " / (※ records에 국/부서가 없어서 월별차트는 연도만 반영)";
+
+  // document.getElementById("chartMeta").textContent =
+  //   `월별 지표: ${yTitle} / 연도: ${currentYear} / 표본수: ${recs.length.toLocaleString()}건${filterNote}`;
+}
+</script>
+</body>
+</html>
