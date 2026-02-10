@@ -302,8 +302,8 @@ function render() {
       margin: { l:40, r:20, t:80, b:160 }
     }, {responsive:true});
 
-    Plotly.react("trend", [], { title: { text: `${dept} 성명별 생산문서 건수` } }, { responsive:true });
-    Plotly.react("approver", [], { title: { text: `${dept} 최종결재자별 결재시간(영업일)` } }, { responsive:true });
+    Plotly.react("trend", [], { title: { text: `${dept} 개인별 생산문서 건수` } }, { responsive:true });
+    Plotly.react("approver", [], { title: { text: `${dept} 최종결재자별 결재시간(휴일, 공휴일 제외)` } }, { responsive:true });
 
     note.textContent = "선택 조건에서 과제 데이터(records)가 없습니다.";
     return;
