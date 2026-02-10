@@ -5,10 +5,10 @@
     <div class="topnav-inner">
       <a class="brand" href="index.html">분석 대시보드</a>
       <div class="menu">
-        <a href="index.html" data-nav="index">대표 분석</a>
-        <a href="org.html" data-nav="org">조직별 분석</a>
-        <a href="compare.html" data-nav="compare">비교 분석</a>
-        <a href="trend.html" data-nav="trend">추세 분석</a>
+        <a href="index.html" data-nav="index.html">대표 분석</a>
+        <a href="org.html" data-nav="org.html">조직별 분석</a>
+        <a href="compare.html" data-nav="compare.html">비교 분석</a>
+        <a href="trend.html" data-nav="trend.html">추세 분석</a>
       </div>
     </div>
   </nav>`;
