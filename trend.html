@@ -286,7 +286,7 @@ function render() {
   const norm = normalizeYears(picked, DATA.years);
   const years = norm.years;
 
-  const title = `[${norm.label}] ${dept} 과제 문서 건수 비교 (TOP ${topN})`;
+  const title = `${dept} 과제 문서 건수 비교 (TOP ${topN})`;
   const note = document.getElementById("note");
 
   const comp = aggCompare(DATA.records, dept, years, topN);
