@@ -173,7 +173,8 @@ const WC_MAX_FONT = 92;
 const WC_GAMMA = 2.25;
 const WC_BOOST_TOPK = 3;
 const WC_BOOST_MULT = [2.8, 1.9, 1.35];
-
+const WC_FONT_SCALE = 1.50;
+  
 /* =========================
    Data loaders
 ========================= */
@@ -452,10 +453,11 @@ function drawWordcloud() {
   const wMax = Math.max(...weights);
 
   function weightFactor(w) {
-    if (!Number.isFinite(w) || w <= 0) return WC_MIN_FONT;
+    if (!Number.isFinite(w) || w <= 0) return WC_MIN_FONT * WC_FONT_SCALE;
     const t = (w - wMin) / Math.max(1e-9, (wMax - wMin));
-    return WC_MIN_FONT + Math.pow(t, WC_GAMMA) * (WC_MAX_FONT - WC_MIN_FONT);
+    return (WC_MIN_FONT + Math.pow(t, WC_GAMMA) * (WC_MAX_FONT - WC_MIN_FONT)) * WC_FONT_SCALE;
   }
+
 
   // 너무 촘촘하면 느려짐
   const gridSize = Math.max(7, Math.floor(cssW / 170));
