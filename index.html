@@ -123,7 +123,7 @@
         textinfo: "percent",
         // ✅ hover는 템플릿으로 고정
         hoverinfo: "skip",
-        hovertemplate: "%{label} / %{value:,}건 / %{percent}<extra></extra>",
+        hovertemplate: "%{label} <br> %{value:,}건 <br> %{percent}<extra></extra>",
         marker: {
           colors: labels.map((_, i) => COLORS[i % COLORS.length]),
           line: { color: "#ffffff", width: 2 }
@@ -211,3 +211,4 @@
   <script src="./nav.js"></script>
 </body>
 </html>
+
