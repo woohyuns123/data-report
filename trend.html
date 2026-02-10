@@ -146,7 +146,7 @@ function aggCompare(records, dept, years, topN) {
   const deptTrim = String(dept || "").trim();
   const yrSet = new Set(years.map(Number));
   const filtered = (records || []).filter(r =>
-    String(r["부서명"]).trim() === deptTrim && yrSet.has(Number(r["연도"]))
+    (!deptTrim || String(r["부서명"]).trim() === deptTrim) && yrSet.has(Number(r["연도"]))
   );
   if (filtered.length === 0) return null;
 
@@ -183,7 +183,7 @@ function renderNameBar(dept, years, topN) {
   const yrSet = new Set(years.map(Number));
 
   const rows = (DATA.name_records || []).filter(r =>
-    String(r["부서명"]).trim() === deptTrim && yrSet.has(Number(r["연도"]))
+    (!deptTrim || String(r["부서명"]).trim() === deptTrim) && yrSet.has(Number(r["연도"]))
   );
 
   if (rows.length === 0) {
@@ -262,7 +262,7 @@ function renderApproverTime(dept, years, topN) {
   const yrSet = new Set(years.map(Number));
 
   const rows = (DATA.approver_records || []).filter(r =>
-    String(r["부서명"]).trim() === deptTrim && yrSet.has(Number(r["연도"]))
+    (!deptTrim || String(r["부서명"]).trim() === deptTrim) && yrSet.has(Number(r["연도"]))
   );
 
   if (rows.length === 0) {
@@ -434,16 +434,27 @@ function updateDeptOptions(searchText) {
   const q = String(searchText||"").toLowerCase().trim();
 
   const depts = (DATA.depts || []).filter(d => d.toLowerCase().includes(q));
+
   sel.innerHTML = "";
+
+  // ✅ 전체 옵션
+  const allOpt = document.createElement("option");
+  allOpt.value = "";
+  allOpt.textContent = "(전체)";
+  sel.appendChild(allOpt);
+
   for (const d of depts) {
     const opt = document.createElement("option");
     opt.value = d;
     opt.textContent = d;
     sel.appendChild(opt);
   }
-  if (depts.includes(current)) sel.value = current;
-  else if (depts.length > 0) sel.value = depts[0];
+
+  // 기본값 전체
+  if (current && depts.includes(current)) sel.value = current;
+  else sel.value = "";
 }
+
 
 /* ===== 초기화 ===== */
 async function init() {
