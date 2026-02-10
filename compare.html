@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>비교분석</title>
+<title>비교 분석</title>
 <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
 <style>
   body { font-family: Arial, sans-serif; margin:0; background:#fff; }
@@ -16,7 +16,7 @@
 </head>
 <body data-page="compare">
 <div class="wrap">
-  <h2>비교분석</h2>
+  <h2>비교 분석</h2>
 
   <div class="block">
     <div class="title">생산문서수 평균</div>
@@ -65,7 +65,7 @@ function drawBar(divId, DATA, yKey, yTitle, barColor) {
     y: y,
     marker: { color: barColor },   // ← 색 지정
     hovertext: x.map((k,i)=>
-      `국: ${k}<br>${yTitle}: ${formatValue(yKey, y[i])}<br>표본수: ${n[i]}`
+      `${k}<br>${yTitle} ${formatValue(yKey, y[i])}`
     ),
     hoverinfo: "text"
   };
