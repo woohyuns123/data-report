@@ -319,7 +319,7 @@ function renderApproverTime(dept, years, topN) {
   const ticks = buildYTicks(allValsForTicks);
 
   Plotly.react("approver", traces, {
-    title: `${dept} 최종결재자별 평균 결재시간(영업일) (TOP ${topN})`,
+    title: `${dept} 최종결재자별 평균 결재시간(공휴일 제외) (TOP ${topN})`,
     barmode: "group",
     xaxis: { title: "", tickangle: -45 },
     yaxis: {
