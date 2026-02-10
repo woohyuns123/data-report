@@ -11,7 +11,6 @@
   <!-- ✅ 공통 스타일 -->
   <link rel="stylesheet" href="./common.css" />
 
-  <!-- ✅ 이 페이지 전용 스타일만 남김 -->
   <style>
     .row { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
     .card { min-width:260px; }
@@ -28,7 +27,6 @@
   </style>
 </head>
 
-<!-- ✅ 현재 페이지 표시 (조직별 분석) -->
 <body data-page="trend">
   <div class="wrap">
     <div class="panel">
@@ -82,14 +80,40 @@ function mean(arr) {
   const a = (arr || []).map(v => Number(v) || 0);
   return a.length ? a.reduce((s,v)=>s+v,0) / a.length : 0;
 }
-function fmtNum(v, digits = 2) {
+
+/**
+ * ✅ 숫자 포맷: 100 이하 => 천단위 콤마 + 소수 2자리
+ *            100 초과 => 천단위 콤마 + 정수(소수 없음)
+ */
+function fmtNum(v) {
   const n = Number(v);
   if (!Number.isFinite(n)) return "N/A";
-  return n.toLocaleString("ko-KR", {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits
-  });
+  if (n > 100) return Math.round(n).toLocaleString("ko-KR");
+  return n.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
+/**
+ * ✅ y축 tick을 직접 생성(가장 확실)
+ * - 0~최대값을 기준으로 6등분 tick 생성
+ * - ticktext는 fmtNum 규칙 적용
+ */
+function buildYTicks(yArray) {
+  const arr = (yArray || []).map(Number).filter(Number.isFinite);
+  const max = arr.length ? Math.max(...arr) : 0;
+  const top = Math.max(0, max);
+
+  // tick 개수(원하면 5~8 사이로 조정)
+  const nTicks = 6;
+
+  // max가 0이면 기본 step
+  const step = (top > 0) ? (top / nTicks) : 1;
+
+  const vals = Array.from({ length: nTicks + 1 }, (_, i) => i * step);
+  const text = vals.map(v => fmtNum(v));
+
+  return { tickvals: vals, ticktext: text };
+}
+
 // category x축에서 전체 폭 가로지르는 hline
 function hlineShape(y, color, nCategories) {
   return {
@@ -191,29 +215,41 @@ function renderNameBar(dept, years, topN) {
 
   const yearOrder = (DATA.years || []).filter(y => yrSet.has(y));
 
+  // y축 tick용: 전체 연도 값 합쳐 max 산출
+  const allValsForTicks = [];
+
   for (const y of yearOrder) {
     const vals = order.map(name => m.get(name + "||" + y) || 0);
+    allValsForTicks.push(...vals);
+
     const mval = mean(vals);
 
     traces.push({
-        type: "bar",
-        name: `${y} (평균: ${fmtNum(mval, 2)}건)`,
-        x: order,
-        y: vals,
-        customdata: vals.map(v => fmtNum(v, 2)),
-        marker: { color: COLOR_MAP[y] || "#888" },
-        hovertemplate: "%{x}<br>%{customdata}건<extra></extra>"
+      type: "bar",
+      name: `${y} (평균: ${fmtNum(mval)}건)`,
+      x: order,
+      y: vals,
+      customdata: vals.map(v => fmtNum(v)),
+      marker: { color: COLOR_MAP[y] || "#888" },
+      hovertemplate: "%{x}<br>%{customdata}건<extra></extra>"
     });
-
 
     shapesTrend.push(hlineShape(mval, COLOR_MAP[y] || "#888", order.length));
   }
+
+  const ticks = buildYTicks(allValsForTicks);
 
   Plotly.react("trend", traces, {
     title: `${dept} 성명별 생산문서 건수 (TOP ${topN})`,
     barmode: "group",
     xaxis: { title: "", tickangle: -45 },
-    yaxis: { title: "", rangemode: "tozero", tickformat: ",.2f" },
+    yaxis: {
+      title: "",
+      rangemode: "tozero",
+      tickmode: "array",
+      tickvals: ticks.tickvals,
+      ticktext: ticks.ticktext
+    },
     shapes: shapesTrend,
     annotations: [],
     margin: { l:40, r:40, t:60, b:160 }
@@ -259,28 +295,40 @@ function renderApproverTime(dept, years, topN) {
 
   const yearOrder = (DATA.years || []).filter(y => yrSet.has(y));
 
+  const allValsForTicks = [];
+
   for (const y of yearOrder) {
     const vals = order.map(a => m.get(a + "||" + y) || 0);
+    allValsForTicks.push(...vals);
+
     const mval = mean(vals);
 
     traces.push({
-        type: "bar",
-        name: `${y} (평균: ${fmtNum(mval, 2)}일)`,
-        x: order,
-        y: vals,
-        customdata: vals.map(v => fmtNum(v, 2)),
-        marker: { color: COLOR_MAP[y] || "#888" },
-        hovertemplate: "%{x}<br>%{customdata}일<extra></extra>"
+      type: "bar",
+      name: `${y} (평균: ${fmtNum(mval)}일)`,
+      x: order,
+      y: vals,
+      customdata: vals.map(v => fmtNum(v)),
+      marker: { color: COLOR_MAP[y] || "#888" },
+      hovertemplate: "%{x}<br>%{customdata}일<extra></extra>"
     });
 
     shapesAppr.push(hlineShape(mval, COLOR_MAP[y] || "#888", order.length));
   }
 
+  const ticks = buildYTicks(allValsForTicks);
+
   Plotly.react("approver", traces, {
     title: `${dept} 최종결재자별 평균 결재시간(영업일) (TOP ${topN})`,
     barmode: "group",
     xaxis: { title: "", tickangle: -45 },
-    yaxis: { title: "", rangemode: "tozero", tickformat: ",.2f" },
+    yaxis: {
+      title: "",
+      rangemode: "tozero",
+      tickmode: "array",
+      tickvals: ticks.tickvals,
+      ticktext: ticks.ticktext
+    },
     shapes: shapesAppr,
     annotations: [],
     margin: { l:40, r:40, t:60, b:170 }
@@ -306,7 +354,7 @@ function render() {
       title: { text: title },
       barmode: "group",
       xaxis: { title: "" },
-      yaxis: { title: "", rangemode: "tozero", tickformat: ",.2f" },
+      yaxis: { title: "", rangemode: "tozero" },
       shapes: [],
       annotations: [],
       margin: { l:40, r:20, t:80, b:160 }
@@ -328,28 +376,40 @@ function render() {
   const traces = [];
   const shapesBar = [];
 
+  const allValsForTicks = [];
+
   for (const yNum of yearOrder) {
     const yVals = comp.order.map(task => comp.map.get(task + "||" + yNum) || 0);
+    allValsForTicks.push(...yVals);
+
     const mval = mean(yVals);
 
     traces.push({
-        type: "bar",
-        name: `${yNum} (평균: ${fmtNum(mval, 2)}건)`,
-        x: x,
-        y: yVals,
-        customdata: yVals.map(v => fmtNum(v, 2)),
-        marker: { color: COLOR_MAP[yNum] || "#888" },
-        hovertemplate: "%{x}<br>%{customdata}건<extra></extra>"
+      type: "bar",
+      name: `${yNum} (평균: ${fmtNum(mval)}건)`,
+      x: x,
+      y: yVals,
+      customdata: yVals.map(v => fmtNum(v)),
+      marker: { color: COLOR_MAP[yNum] || "#888" },
+      hovertemplate: "%{x}<br>%{customdata}건<extra></extra>"
     });
 
     shapesBar.push(hlineShape(mval, COLOR_MAP[yNum] || "#888", x.length));
   }
 
+  const ticks = buildYTicks(allValsForTicks);
+
   Plotly.react("bar", traces, {
     title: { text: title },
     barmode: "group",
     xaxis: { title: "", tickangle: 45 },
-    yaxis: { title: "", rangemode: "tozero", tickformat: ",.2f" },
+    yaxis: {
+      title: "",
+      rangemode: "tozero",
+      tickmode: "array",
+      tickvals: ticks.tickvals,
+      ticktext: ticks.ticktext
+    },
     shapes: shapesBar,
     annotations: [],
     margin: { l:40, r:40, t:80, b:160 }
@@ -435,9 +495,6 @@ init().catch(err => {
 });
 </script>
 
-  <!-- ✅ 공통 네비 자동 삽입 + active 처리 -->
   <script src="./nav.js"></script>
 </body>
 </html>
-
-
