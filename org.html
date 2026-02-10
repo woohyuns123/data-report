@@ -8,7 +8,6 @@
   <!-- libs -->
   <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.js"></script>
   <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
-  <!-- gzip 사용 시 필요 -->
   <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
 
   <link rel="stylesheet" href="./common.css" />
@@ -16,7 +15,6 @@
   <style>
     body { font-family: Arial, sans-serif; margin:0; background:#fff; }
     .wrap { max-width:1200px; margin:24px auto; padding:0 16px; }
-
     h2 { margin:0 0 12px; font-size:20px; }
 
     .row { display:flex; gap:40px; flex-wrap:wrap; align-items:flex-start; margin-bottom:10px; }
@@ -74,19 +72,16 @@
 <div class="wrap">
   <h2>문서 분석 대시보드</h2>
 
-  <!-- 연도 버튼 -->
   <div class="row" id="yearBtns">
     <button class="btn active" data-year="전체" type="button">전체</button>
     <button class="btn" data-year="2024" type="button">2024</button>
     <button class="btn" data-year="2025" type="button">2025</button>
   </div>
 
-  <!-- 국/부서 -->
   <div class="row">
     <div class="field" style="min-width:290px;">
       <label>국 검색</label>
       <input id="bureauSearch" type="text" placeholder="예) 문화행정국" />
-
       <label style="margin-top:6px;">국 선택</label>
       <select id="bureauSelect">
         <option value="">(전체)</option>
@@ -96,7 +91,6 @@
     <div class="field" style="min-width:290px;">
       <label>부서 검색</label>
       <input id="deptSearch" type="text" placeholder="예) 문화관광과" />
-
       <label style="margin-top:6px;">부서 선택</label>
       <select id="deptSelect">
         <option value="">(전체)</option>
@@ -104,7 +98,6 @@
     </div>
   </div>
 
-  <!-- 지표 버튼 -->
   <div class="row" id="metricBtns">
     <button class="btn active" data-metric="내부" type="button">내부</button>
     <button class="btn" data-metric="외부" type="button">외부</button>
@@ -142,10 +135,19 @@ let currentMetric = "내부";
 let bureauToDepts = new Map();
 let allDepts = [];
 
+/* util */
+function debounce(fn, ms) {
+  let t = null;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), ms);
+  };
+}
+
 /* =========================
    Color / Units
 ========================= */
-const HLINE_COLOR = "#E5989B"; // pastel coral
+const HLINE_COLOR = "#E5989B";
 
 function metricUnit(metric) {
   if (metric === "결재시간") return "일";
@@ -174,23 +176,7 @@ const WC_BOOST_MULT = [2.8, 1.9, 1.35];
 
 /* =========================
    Data loaders
-   - choose ONE: gzip(.json.gz) or plain json(.json)
 ========================= */
-async function loadJSON(url) {
-  const r = await fetch(url, { cache: "no-store", headers: { "Accept": "application/json" } });
-  if (!r.ok) {
-    const t = await r.text();
-    throw new Error(`HTTP ${r.status} for ${url}\n${t.slice(0,200)}`);
-  }
-  const ct = r.headers.get("content-type") || "";
-  if (!ct.includes("application/json")) {
-    // 서버가 HTML을 주는 케이스 즉시 식별
-    const t = await r.text();
-    throw new Error(`Not JSON (content-type=${ct}) for ${url}\n${t.slice(0,200)}`);
-  }
-  return r.json();
-}
-
 async function loadGzJSON(urlGz) {
   const r = await fetch(urlGz, { cache: "no-store" });
   if (!r.ok) {
@@ -198,16 +184,14 @@ async function loadGzJSON(urlGz) {
     throw new Error(`HTTP ${r.status} for ${urlGz}\n${t.slice(0,200)}`);
   }
   const buf = await r.arrayBuffer();
+
   let text;
   try {
-    // gzip이면 ungzip이 더 정석
     text = pako.ungzip(new Uint8Array(buf), { to: "string" });
   } catch (e) {
-    // 일부 파일이 zlib/deflate로 만들어진 경우 대비
     text = pako.inflate(new Uint8Array(buf), { to: "string" });
   }
 
-  // HTML이 섞여 들어온 경우(경로 틀려서 404 페이지가 내려온 경우) 즉시 식별
   if (text && text.trim().startsWith("<")) {
     throw new Error(`Expected gzipped JSON but got HTML-like content from ${urlGz}\n${text.slice(0,200)}`);
   }
@@ -220,8 +204,6 @@ async function loadGzJSON(urlGz) {
 ========================= */
 document.addEventListener("DOMContentLoaded", async () => {
   try {
-    // ✅ 여기서 하나만 선택
-    // RAW = await loadJSON("data2.json");
     RAW = await loadGzJSON("data2.json.gz");
 
     buildMappings();
@@ -230,7 +212,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     drawWordcloud();
     drawChart();
 
-    window.addEventListener("resize", () => drawWordcloud());
+    // ✅ resize는 디바운스 1개만
+    window.addEventListener("resize", debounce(drawWordcloud, 180));
   } catch (err) {
     console.error(err);
   }
@@ -250,9 +233,7 @@ function buildMappings() {
   bureauToDepts = new Map();
   allDepts = [];
 
-  // 원본 데이터에 "전체"가 없을 수 있어 방어적으로 처리
   const yKey = pickAnyYearKey(RAW?.wordcloud_by_dept) || "전체";
-
   const deptObj = RAW?.wordcloud_by_dept?.[yKey] || {};
   const deptNames = Object.keys(deptObj);
 
@@ -412,15 +393,15 @@ function getWordcloudList() {
 
   if (selectedDept) {
     const list = RAW?.wordcloud_by_dept?.[y]?.[selectedDept];
-    if (list && list.length) return { list, scope: "부서", name: selectedDept };
+    if (list && list.length) return { list };
   }
   if (selectedBureau) {
     const list = RAW?.wordcloud_by_bureau?.[y]?.[selectedBureau];
-    if (list && list.length) return { list, scope: "국", name: selectedBureau };
+    if (list && list.length) return { list };
   }
 
   const list = RAW?.wordcloud_global?.[y];
-  return { list: list || [["데이터없음", 1]], scope: "전체", name: "전체" };
+  return { list: list || [["데이터없음", 1]] };
 }
 
 function drawWordcloud() {
@@ -430,17 +411,18 @@ function drawWordcloud() {
   const canvas = document.getElementById("wc");
   const meta = document.getElementById("wcMeta");
 
-  // 컨테이너에 정확히 맞춤 (레티나)
   const cssW = Math.max(520, canvas.parentElement.clientWidth);
   const cssH = WC_HEIGHT;
-  const dpr = window.devicePixelRatio || 1;
+
+  // 레티나 상한
+  const dpr = Math.min(1.5, window.devicePixelRatio || 1);
 
   canvas.style.width = cssW + "px";
   canvas.style.height = cssH + "px";
   canvas.width = Math.floor(cssW * dpr);
   canvas.height = Math.floor(cssH * dpr);
 
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const ctx = canvas.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, cssW, cssH);
 
@@ -450,7 +432,11 @@ function drawWordcloud() {
 
   if (!list.length) list = [["데이터없음", 1]];
 
-  // TopK boost (원하면 유지)
+  // 단어 수 제한
+  const MAX_WORDS = 120;
+  if (list.length > MAX_WORDS) list = list.slice(0, MAX_WORDS);
+
+  // TopK boost
   if (WC_BOOST_TOPK > 0) {
     list = list.map((p, idx) => {
       if (idx < WC_BOOST_TOPK) {
@@ -461,10 +447,6 @@ function drawWordcloud() {
     });
   }
 
-  // 촘촘하게 배치(여백 감소) - 너무 낮추면 느려짐
-  const gridSize = Math.max(3, Math.floor(cssW / 260));
-
-  // 기본 weightFactor (중복 금지)
   const weights = list.map(x => x[1]);
   const wMin = Math.min(...weights);
   const wMax = Math.max(...weights);
@@ -475,7 +457,9 @@ function drawWordcloud() {
     return WC_MIN_FONT + Math.pow(t, WC_GAMMA) * (WC_MAX_FONT - WC_MIN_FONT);
   }
 
-  // 1차 렌더: 절대 잘리지 않게 drawOutOfBound=false 유지
+  // 너무 촘촘하면 느려짐
+  const gridSize = Math.max(7, Math.floor(cssW / 170));
+
   requestAnimationFrame(() => {
     WordCloud(canvas, {
       list,
@@ -486,132 +470,8 @@ function drawWordcloud() {
       color: "random-dark",
       rotateRatio: 0.01,
       rotationSteps: 2,
-      drawOutOfBound: false,  // ✅ 잘림 금지
-      shrinkToFit: true
-    });
-
-    // 2차: 실제 잉크(그려진 픽셀) 영역을 스캔해서
-    // "절대 안 잘리는 최대 확대"로 fit
-    const fit = computeInkBoundsAndFit(canvas, cssW, cssH, dpr);
-    if (fit && fit.scale > 1.0) {
-      applySafeFit(canvas, cssW, cssH, dpr, fit);
-    }
-
-    meta.textContent = `상위 ${list.length}개`;
-  });
-}
-
-/**
- * 캔버스에서 실제로 그려진(불투명) 픽셀의 바운딩 박스를 구하고,
- * 프레임(cssW/cssH)에 절대 잘리지 않는 최대 스케일 + 이동값을 계산
- */
-function computeInkBoundsAndFit(canvas, cssW, cssH, dpr) {
-  const w = canvas.width;
-  const h = canvas.height;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  const img = ctx.getImageData(0, 0, w, h).data;
-
-  // alpha > threshold 인 픽셀을 "잉크"로 간주
-  const TH = 12;
-
-  let minX = w, minY = h, maxX = -1, maxY = -1;
-
-  // 성능: 1~2px 샘플링으로도 충분 (정밀 원하면 step=1)
-  const step = 2;
-
-  for (let y = 0; y < h; y += step) {
-    const row = y * w * 4;
-    for (let x = 0; x < w; x += step) {
-      const a = img[row + x * 4 + 3];
-      if (a > TH) {
-        if (x < minX) minX = x;
-        if (y < minY) minY = y;
-        if (x > maxX) maxX = x;
-        if (y > maxY) maxY = y;
-      }
-    }
-  }
-
-  // 아무것도 안 그려졌으면 중단
-  if (maxX < 0 || maxY < 0) return null;
-
-  // 잉크 박스(픽셀) -> CSS 좌표
-  const inkW = (maxX - minX + 1) / dpr;
-  const inkH = (maxY - minY + 1) / dpr;
-
-  // 가장자리 안전 마진(픽셀) - 글꼴 렌더 특성상 약간 필요
-  const margin = 6; // CSS px
-
-  const availW = Math.max(1, cssW - margin * 2);
-  const availH = Math.max(1, cssH - margin * 2);
-
-  // 절대 안 잘리는 최대 scale
-  const scale = Math.min(availW / inkW, availH / inkH);
-
-  // 이미 충분히 꽉 차 있으면 스킵
-  if (!Number.isFinite(scale) || scale <= 1.01) return { scale: 1.0 };
-
-  // 잉크 중심을 프레임 중심으로 이동시키기 위한 translate 계산
-  const inkCx = ((minX + maxX) / 2) / dpr;
-  const inkCy = ((minY + maxY) / 2) / dpr;
-
-  const targetCx = cssW / 2;
-  const targetCy = cssH / 2;
-
-  return { scale, inkCx, inkCy, targetCx, targetCy };
-}
-
-function applySafeFit(canvas, cssW, cssH, dpr, fit) {
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-
-  // 원본을 임시 캔버스에 복사
-  const tmp = document.createElement("canvas");
-  tmp.width = canvas.width;
-  tmp.height = canvas.height;
-  tmp.getContext("2d").drawImage(canvas, 0, 0);
-
-  // 다시 그릴 때 CSS 좌표계 기준으로 변환
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, cssW, cssH);
-
-  // 중심 기준 확대 + 이동 (절대 잘리지 않는 scale만 사용)
-  ctx.translate(fit.targetCx, fit.targetCy);
-  ctx.scale(fit.scale, fit.scale);
-  ctx.translate(-fit.inkCx, -fit.inkCy);
-
-  // tmp는 픽셀 캔버스라 drawImage 좌표를 CSS로 넣으면 dpr 변환이 이미 ctx에 적용됨
-  ctx.drawImage(tmp, 0, 0, cssW, cssH);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-}
-
-
-  const weights = list.map(x => x[1]);
-  const wMin = Math.min(...weights);
-  const wMax = Math.max(...weights);
-
-  function weightFactor(w) {
-    if (!Number.isFinite(w) || w <= 0) return WC_MIN_FONT;
-    const t = (w - wMin) / Math.max(1e-9, (wMax - wMin)); // 0..1
-    return WC_MIN_FONT + Math.pow(t, WC_GAMMA) * (WC_MAX_FONT - WC_MIN_FONT);
-  }
-
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const gridSize = Math.max(4, Math.floor(canvas.width / 200));
-
-  requestAnimationFrame(() => {
-    WordCloud(canvas, {
-      list,
-      gridSize,
-      shrinkToFit: true,
       drawOutOfBound: false,
-      weightFactor,
-      fontFamily: "Malgun Gothic, Arial",
-      backgroundColor: "#fff",
-      color: "random-dark",
-      rotateRatio: 0.02,
-      rotationSteps: 2
+      shrinkToFit: true
     });
   });
 
