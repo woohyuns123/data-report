@@ -10,12 +10,16 @@
 <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
 <script>
 fetch("data2.json.gz")
-  .then(r => r.arrayBuffer())
+  .then(r => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.arrayBuffer();
+  })
   .then(buf => {
     const decompressed = pako.inflate(new Uint8Array(buf), { to: "string" });
     const data = JSON.parse(decompressed);
     console.log(data);
-  });
+  })
+  .catch(err => console.error(err));
 </script>
 <link rel="stylesheet" href="./common.css" />
 
