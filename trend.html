@@ -82,7 +82,14 @@ function mean(arr) {
   const a = (arr || []).map(v => Number(v) || 0);
   return a.length ? a.reduce((s,v)=>s+v,0) / a.length : 0;
 }
-
+function fmtNum(v, digits = 2) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "N/A";
+  return n.toLocaleString("ko-KR", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits
+  });
+}
 // category x축에서 전체 폭 가로지르는 hline
 function hlineShape(y, color, nCategories) {
   return {
@@ -189,13 +196,15 @@ function renderNameBar(dept, years, topN) {
     const mval = mean(vals);
 
     traces.push({
-      type: "bar",
-      name: `${y} (평균: ${mval.toFixed(1)}건)`,
-      x: order,
-      y: vals,
-      marker: { color: COLOR_MAP[y] || "#888" },
-      hovertemplate: "%{x}<br>%{y}건<extra></extra>"
+        type: "bar",
+        name: `${y} (평균: ${fmtNum(mval, 2)}건)`,
+        x: order,
+        y: vals,
+        customdata: vals.map(v => fmtNum(v, 2)),
+        marker: { color: COLOR_MAP[y] || "#888" },
+        hovertemplate: "%{x}<br>%{customdata}건<extra></extra>"
     });
+
 
     shapesTrend.push(hlineShape(mval, COLOR_MAP[y] || "#888", order.length));
   }
@@ -204,7 +213,7 @@ function renderNameBar(dept, years, topN) {
     title: `${dept} 성명별 생산문서 건수 (TOP ${topN})`,
     barmode: "group",
     xaxis: { title: "", tickangle: -45 },
-    yaxis: { title: "", rangemode: "tozero" },
+    yaxis: { title: "", rangemode: "tozero", tickformat: ",.2f" },
     shapes: shapesTrend,
     annotations: [],
     margin: { l:40, r:40, t:60, b:160 }
@@ -255,12 +264,13 @@ function renderApproverTime(dept, years, topN) {
     const mval = mean(vals);
 
     traces.push({
-      type: "bar",
-      name: `${y} (평균: ${mval.toFixed(1)}일)`,
-      x: order,
-      y: vals,
-      marker: { color: COLOR_MAP[y] || "#888" },
-      hovertemplate: "%{x}<br>%{y}일<extra></extra>"
+        type: "bar",
+        name: `${y} (평균: ${fmtNum(mval, 2)}일)`,
+        x: order,
+        y: vals,
+        customdata: vals.map(v => fmtNum(v, 2)),
+        marker: { color: COLOR_MAP[y] || "#888" },
+        hovertemplate: "%{x}<br>%{customdata}일<extra></extra>"
     });
 
     shapesAppr.push(hlineShape(mval, COLOR_MAP[y] || "#888", order.length));
@@ -270,7 +280,7 @@ function renderApproverTime(dept, years, topN) {
     title: `${dept} 최종결재자별 평균 결재시간(영업일) (TOP ${topN})`,
     barmode: "group",
     xaxis: { title: "", tickangle: -45 },
-    yaxis: { title: "", rangemode: "tozero" },
+    yaxis: { title: "", rangemode: "tozero", tickformat: ",.2f" },
     shapes: shapesAppr,
     annotations: [],
     margin: { l:40, r:40, t:60, b:170 }
@@ -286,7 +296,7 @@ function render() {
   const norm = normalizeYears(picked, DATA.years);
   const years = norm.years;
 
-  const title = `${dept} 과제 문서 건수 비교 (TOP ${topN})`;
+  const title = `과제 문서 건수 비교 (TOP ${topN})`;
   const note = document.getElementById("note");
 
   const comp = aggCompare(DATA.records, dept, years, topN);
@@ -296,7 +306,7 @@ function render() {
       title: { text: title },
       barmode: "group",
       xaxis: { title: "" },
-      yaxis: { title: "" },
+      yaxis: { title: "", rangemode: "tozero", tickformat: ",.2f" },
       shapes: [],
       annotations: [],
       margin: { l:40, r:20, t:80, b:160 }
@@ -323,12 +333,13 @@ function render() {
     const mval = mean(yVals);
 
     traces.push({
-      type: "bar",
-      name: `${yNum} (평균: ${mval.toFixed(1)}건)`,
-      x: x,
-      y: yVals,
-      marker: { color: COLOR_MAP[yNum] || "#888" },
-      hovertemplate: "%{x}<br>%{y}건<extra></extra>"
+        type: "bar",
+        name: `${yNum} (평균: ${fmtNum(mval, 2)}건)`,
+        x: x,
+        y: yVals,
+        customdata: yVals.map(v => fmtNum(v, 2)),
+        marker: { color: COLOR_MAP[yNum] || "#888" },
+        hovertemplate: "%{x}<br>%{customdata}건<extra></extra>"
     });
 
     shapesBar.push(hlineShape(mval, COLOR_MAP[yNum] || "#888", x.length));
@@ -337,8 +348,8 @@ function render() {
   Plotly.react("bar", traces, {
     title: { text: title },
     barmode: "group",
-    xaxis: { title: "과제", tickangle: 45 },
-    yaxis: { title: "문서 건수", rangemode: "tozero" },
+    xaxis: { title: "", tickangle: 45 },
+    yaxis: { title: "", rangemode: "tozero", tickformat: ",.2f" },
     shapes: shapesBar,
     annotations: [],
     margin: { l:40, r:40, t:80, b:160 }
