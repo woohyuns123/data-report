@@ -1,10 +1,9 @@
-
 <!doctype html>
 <html lang="ko">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>국별 비교분석</title>
+<title>비교분석</title>
 <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
 <style>
   body { font-family: Arial, sans-serif; margin:0; background:#fff; }
@@ -17,7 +16,7 @@
 </head>
 <body data-page="compare">
 <div class="wrap">
-  <h2>국별 비교분석</h2>
+  <h2>비교분석</h2>
 
   <div class="block">
     <div class="title">생산문서수 평균</div>
@@ -42,21 +41,31 @@ const DATA_OPEN = [{"국": "동주민센터", "생산문서수_평균": 270254.0
 
 const AVG_COLOR = "red";
 
-function drawBar(divId, DATA, yKey, yTitle) {
+function drawBar(divId, DATA, yKey, yTitle, barColor) {
   const x = DATA.map(d => d["국"]);
   const y = DATA.map(d => d[yKey]);
   const n = DATA.map(d => d["표본수"]);
 
-  // null/undefined/NaN 제거
-  const validY = y.filter(v => v !== null && v !== undefined && Number.isFinite(v));
-  const meanY = validY.length ? validY.reduce((a,b)=>a+b,0) / validY.length : null;
+  function formatValue(key, value) {
+    if (value === null || value === undefined || !Number.isFinite(value)) return "N/A";
+
+    if (key === "생산문서수_평균") return Math.round(value).toLocaleString() + "건";
+    if (key === "결재시간_평균") return value.toFixed(2) + "일";
+    if (key === "문서공개율_평균") return (value * 100).toFixed(1) + "%";
+
+    return value.toFixed(2);
+  }
+
+  const validY = y.filter(v => v !== null && Number.isFinite(v));
+  const meanY = validY.length ? validY.reduce((a,b)=>a+b,0)/validY.length : null;
 
   const trace = {
     type: "bar",
     x: x,
     y: y,
+    marker: { color: barColor },   // ← 색 지정
     hovertext: x.map((k,i)=>
-      `국: ${k}<br>${yTitle}: ${Number.isFinite(y[i]) ? y[i].toFixed(2) : "N/A"}<br>표본수: ${n[i]}`
+      `국: ${k}<br>${yTitle}: ${formatValue(yKey, y[i])}<br>표본수: ${n[i]}`
     ),
     hoverinfo: "text"
   };
@@ -68,28 +77,28 @@ function drawBar(divId, DATA, yKey, yTitle) {
     x1: 1,
     y0: meanY,
     y1: meanY,
-    line: {
-      color: AVG_COLOR,
-      width: 2,
-      dash: "dash"
-    }
+    line: { color: AVG_COLOR, width: 2, dash: "dash" }
   }] : [];
 
   const annotations = (meanY !== null) ? [{
     xref: "paper",
     yref: "y",
-    x: 1.02,
+    x: 1.005,
     y: meanY,
-    text: `평균: ${meanY.toFixed(2)}`,
+    text: `평균: ${formatValue(yKey, meanY)}`,
     showarrow: false,
     font: { color: AVG_COLOR, size: 12 },
     xanchor: "left"
   }] : [];
 
+  const yaxisConfig = (yKey === "문서공개율_평균")
+    ? { title: yTitle, rangemode: "tozero", tickformat: ".0%" }
+    : { title: yTitle, rangemode: "tozero" };
+
   const layout = {
-    margin: {l:60, r:110, t:20, b:140},
+    margin: {l:60, r:110, t:80, b:140},
     xaxis: { title: "국", tickangle: -45 },
-    yaxis: { title: yTitle, rangemode: "tozero" },
+    yaxis: yaxisConfig,
     shapes: shapes,
     annotations: annotations
   };
@@ -97,9 +106,10 @@ function drawBar(divId, DATA, yKey, yTitle) {
   Plotly.react(divId, [trace], layout, {responsive:true});
 }
 
-drawBar("c1", DATA_PROD, "생산문서수_평균", "생산문서수(평균)");
-drawBar("c2", DATA_TIME, "결재시간_평균", "결재시간(평균)");
-drawBar("c3", DATA_OPEN, "문서공개율_평균", "문서공개율(평균)");
+drawBar("c1", DATA_PROD, "생산문서수_평균", "", "#A7C7E7");
+drawBar("c2", DATA_TIME, "결재시간_평균", "", "#B8E0C8");
+drawBar("c3", DATA_OPEN, "문서공개율_평균", "", "#FFD6A5");
+
 </script>
 <link rel="stylesheet" href="./common.css" />
 <script src="./nav.js"></script>
