@@ -543,6 +543,7 @@ function drawChart() {
     });
     yTitle = "결재시간 평균(일)";
   }
+  const unit = metricUnit(currentMetric);
 
   const yHover = y.map(v => {
     if (v === null || v === undefined || !Number.isFinite(v)) return "N/A";
@@ -567,7 +568,6 @@ function drawChart() {
     line: { color: HLINE_COLOR, width: 2, dash: "dash" }
   }] : [];
 
-  const unit = metricUnit(currentMetric);
 
   const annotations = (meanY !== null) ? [{
     xref: "paper",
