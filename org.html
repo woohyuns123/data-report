@@ -547,9 +547,12 @@ function drawChart() {
   const yHover = y.map(v => {
     if (v === null || v === undefined || !Number.isFinite(v)) return "N/A";
 
-    if (v > 100) return Math.round(v).toLocaleString();
-    return v.toFixed(2);
-    }); 
+    // 값 포맷(기존 로직 유지)
+    const numStr = (v > 100) ? Math.round(v).toLocaleString() : v.toFixed(2);
+
+    // ✅ 결재시간이면 "일", 나머지는 "건"
+    return `${numStr}${unit}`;
+    });
 
   const validY = y.filter(v => v !== null && v !== undefined && Number.isFinite(v));
   const meanY = validY.length ? validY.reduce((a,b)=>a+b,0) / validY.length : null;
