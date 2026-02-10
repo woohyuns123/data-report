@@ -19,6 +19,8 @@
   const key = document.body.getAttribute("data-page");
   if (!key) return;
 
-  const a = document.querySelector(`.menu a[data-nav="${key}"]`);
+  // ✅ 네비 내부로 범위 제한 (충돌 방지)
+  const nav = document.querySelector(".topnav");
+  const a = nav?.querySelector(`.menu a[data-nav="${key}"]`);
   if (a) a.classList.add("active");
 })();
