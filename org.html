@@ -430,9 +430,19 @@ function drawWordcloud() {
   const canvas = document.getElementById("wc");
   const meta = document.getElementById("wcMeta");
 
-  const wrapW = Math.max(520, canvas.parentElement.clientWidth);
-  canvas.width = Math.floor(wrapW);
-  canvas.height = WC_HEIGHT;
+  // 컨테이너에 정확히 맞춤 (레티나)
+  const cssW = Math.max(520, canvas.parentElement.clientWidth);
+  const cssH = WC_HEIGHT;
+  const dpr = window.devicePixelRatio || 1;
+
+  canvas.style.width = cssW + "px";
+  canvas.style.height = cssH + "px";
+  canvas.width = Math.floor(cssW * dpr);
+  canvas.height = Math.floor(cssH * dpr);
+
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
 
   let list = (rawList || [])
     .map(p => [String(p[0] ?? ""), Number(p[1])])
@@ -440,7 +450,7 @@ function drawWordcloud() {
 
   if (!list.length) list = [["데이터없음", 1]];
 
-  // TopK boost
+  // TopK boost (원하면 유지)
   if (WC_BOOST_TOPK > 0) {
     list = list.map((p, idx) => {
       if (idx < WC_BOOST_TOPK) {
@@ -450,6 +460,130 @@ function drawWordcloud() {
       return p;
     });
   }
+
+  // 촘촘하게 배치(여백 감소) - 너무 낮추면 느려짐
+  const gridSize = Math.max(3, Math.floor(cssW / 260));
+
+  // 기본 weightFactor (중복 금지)
+  const weights = list.map(x => x[1]);
+  const wMin = Math.min(...weights);
+  const wMax = Math.max(...weights);
+
+  function weightFactor(w) {
+    if (!Number.isFinite(w) || w <= 0) return WC_MIN_FONT;
+    const t = (w - wMin) / Math.max(1e-9, (wMax - wMin));
+    return WC_MIN_FONT + Math.pow(t, WC_GAMMA) * (WC_MAX_FONT - WC_MIN_FONT);
+  }
+
+  // 1차 렌더: 절대 잘리지 않게 drawOutOfBound=false 유지
+  requestAnimationFrame(() => {
+    WordCloud(canvas, {
+      list,
+      gridSize,
+      weightFactor,
+      fontFamily: "Malgun Gothic, Arial",
+      backgroundColor: "#fff",
+      color: "random-dark",
+      rotateRatio: 0.01,
+      rotationSteps: 2,
+      drawOutOfBound: false,  // ✅ 잘림 금지
+      shrinkToFit: true
+    });
+
+    // 2차: 실제 잉크(그려진 픽셀) 영역을 스캔해서
+    // "절대 안 잘리는 최대 확대"로 fit
+    const fit = computeInkBoundsAndFit(canvas, cssW, cssH, dpr);
+    if (fit && fit.scale > 1.0) {
+      applySafeFit(canvas, cssW, cssH, dpr, fit);
+    }
+
+    meta.textContent = `상위 ${list.length}개`;
+  });
+}
+
+/**
+ * 캔버스에서 실제로 그려진(불투명) 픽셀의 바운딩 박스를 구하고,
+ * 프레임(cssW/cssH)에 절대 잘리지 않는 최대 스케일 + 이동값을 계산
+ */
+function computeInkBoundsAndFit(canvas, cssW, cssH, dpr) {
+  const w = canvas.width;
+  const h = canvas.height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const img = ctx.getImageData(0, 0, w, h).data;
+
+  // alpha > threshold 인 픽셀을 "잉크"로 간주
+  const TH = 12;
+
+  let minX = w, minY = h, maxX = -1, maxY = -1;
+
+  // 성능: 1~2px 샘플링으로도 충분 (정밀 원하면 step=1)
+  const step = 2;
+
+  for (let y = 0; y < h; y += step) {
+    const row = y * w * 4;
+    for (let x = 0; x < w; x += step) {
+      const a = img[row + x * 4 + 3];
+      if (a > TH) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  // 아무것도 안 그려졌으면 중단
+  if (maxX < 0 || maxY < 0) return null;
+
+  // 잉크 박스(픽셀) -> CSS 좌표
+  const inkW = (maxX - minX + 1) / dpr;
+  const inkH = (maxY - minY + 1) / dpr;
+
+  // 가장자리 안전 마진(픽셀) - 글꼴 렌더 특성상 약간 필요
+  const margin = 6; // CSS px
+
+  const availW = Math.max(1, cssW - margin * 2);
+  const availH = Math.max(1, cssH - margin * 2);
+
+  // 절대 안 잘리는 최대 scale
+  const scale = Math.min(availW / inkW, availH / inkH);
+
+  // 이미 충분히 꽉 차 있으면 스킵
+  if (!Number.isFinite(scale) || scale <= 1.01) return { scale: 1.0 };
+
+  // 잉크 중심을 프레임 중심으로 이동시키기 위한 translate 계산
+  const inkCx = ((minX + maxX) / 2) / dpr;
+  const inkCy = ((minY + maxY) / 2) / dpr;
+
+  const targetCx = cssW / 2;
+  const targetCy = cssH / 2;
+
+  return { scale, inkCx, inkCy, targetCx, targetCy };
+}
+
+function applySafeFit(canvas, cssW, cssH, dpr, fit) {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+  // 원본을 임시 캔버스에 복사
+  const tmp = document.createElement("canvas");
+  tmp.width = canvas.width;
+  tmp.height = canvas.height;
+  tmp.getContext("2d").drawImage(canvas, 0, 0);
+
+  // 다시 그릴 때 CSS 좌표계 기준으로 변환
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+
+  // 중심 기준 확대 + 이동 (절대 잘리지 않는 scale만 사용)
+  ctx.translate(fit.targetCx, fit.targetCy);
+  ctx.scale(fit.scale, fit.scale);
+  ctx.translate(-fit.inkCx, -fit.inkCy);
+
+  // tmp는 픽셀 캔버스라 drawImage 좌표를 CSS로 넣으면 dpr 변환이 이미 ctx에 적용됨
+  ctx.drawImage(tmp, 0, 0, cssW, cssH);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
 
   const weights = list.map(x => x[1]);
   const wMin = Math.min(...weights);
