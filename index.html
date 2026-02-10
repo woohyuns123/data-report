@@ -113,23 +113,30 @@
       const labels = Object.keys(obj || {});
       const values = labels.map(k => obj[k]);
 
+      const COLORS = ["#A7C7E7", "#B8E0C8", "#FFD6A5"]; // 3색 팔레트
+
       const trace = {
         type: "pie",
         labels,
         values,
         hole: 0.62,
         textinfo: "percent",
-        hoverinfo: "label+value+percent"
+        hoverinfo: "label+value+percent",
+        marker: {
+          colors: labels.map((_, i) => COLORS[i % COLORS.length]),
+          line: { color: "#ffffff", width: 2 } // 경계선(선택)
+        }
       };
 
       const layout = {
-        margin: {l:10, r:10, t:10, b:10},
+        margin: { l: 10, r: 10, t: 10, b: 10 },
         showlegend: true,
-        legend: {orientation:"h"}
+        legend: { orientation: "h" }
       };
 
-      Plotly.react(divId, [trace], layout, {responsive:true});
+      Plotly.react(divId, [trace], layout, { responsive: true });
     }
+
 
     function render() {
       if (!PACK) return; // 아직 로딩 전이면 렌더 스킵
