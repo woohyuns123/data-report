@@ -240,7 +240,7 @@ function renderNameBar(dept, years, topN) {
   const ticks = buildYTicks(allValsForTicks);
 
   Plotly.react("trend", traces, {
-    title: `${dept} 성명별 생산문서 건수 (TOP ${topN})`,
+    title: `${dept} 개인별 생산문서 건수 (TOP ${topN})`,
     barmode: "group",
     xaxis: { title: "", tickangle: -45 },
     yaxis: {
