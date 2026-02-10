@@ -1,88 +1,73 @@
 <!doctype html>
 <html lang="ko">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>조직별 분석</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>조직별 분석</title>
 
-<script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.js"></script>
-<script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
-<script>
-fetch("data2.json.gz")
-  .then(r => {
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return r.arrayBuffer();
-  })
-  .then(buf => {
-    const decompressed = pako.inflate(new Uint8Array(buf), { to: "string" });
-    const data = JSON.parse(decompressed);
-    console.log(data);
-  })
-  .catch(err => console.error(err));
-</script>
-<link rel="stylesheet" href="./common.css" />
+  <!-- libs -->
+  <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+  <!-- gzip 사용 시 필요 -->
+  <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
 
-<style>
-  body { font-family: Arial, sans-serif; margin:0; background:#fff; }
-  .wrap { max-width:1200px; margin:24px auto; padding:0 16px; }
+  <link rel="stylesheet" href="./common.css" />
 
-  h2 { margin:0 0 12px; font-size:20px; }
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#fff; }
+    .wrap { max-width:1200px; margin:24px auto; padding:0 16px; }
 
-  .row { display:flex; gap:40px; flex-wrap:wrap; align-items:flex-start; margin-bottom:10px; }
-  .btn {
-    padding:6px 12px;
-    border:1px solid #ccc;
-    background:#fff;
-    border-radius:8px;
-    cursor:pointer;
-    font-size:13px;
-    user-select:none;
-  }
-  .btn.active { background:#1f77b4; color:#fff; border-color:#1f77b4; }
+    h2 { margin:0 0 12px; font-size:20px; }
 
-  .field { display:flex; flex-direction:column; gap:6px; min-width:260px; }
-  label { font-size:12px; color:#555; }
+    .row { display:flex; gap:40px; flex-wrap:wrap; align-items:flex-start; margin-bottom:10px; }
+    .btn {
+      padding:6px 12px;
+      border:1px solid #ccc;
+      background:#fff;
+      border-radius:8px;
+      cursor:pointer;
+      font-size:13px;
+      user-select:none;
+    }
+    .btn.active { background:#1f77b4; color:#fff; border-color:#1f77b4; }
 
-  select, input[type="text"] {
-    padding:8px 10px;
-    border:1px solid #ccc;
-    border-radius:8px;
-    font-size:13px;
-    width:100%;
-    box-sizing:border-box;
-  }
+    .field { display:flex; flex-direction:column; gap:6px; min-width:260px; }
+    label { font-size:12px; color:#555; }
 
-  .hint { font-size:12px; color:#666; margin:6px 0 10px; }
+    select, input[type="text"] {
+      padding:8px 10px;
+      border:1px solid #ccc;
+      border-radius:8px;
+      font-size:13px;
+      width:100%;
+      box-sizing:border-box;
+    }
 
-  /* ✅ 여백 줄임 */
-  .block {
-    border:1px solid #eee;
-    border-radius:12px;
-    padding:10px;
-    margin-bottom:14px;
-    background:#fff;
-  }
+    .hint { font-size:12px; color:#666; margin:6px 0 10px; }
 
-  /* ✅ 워드클라우드 높이 줄여서 여백 체감 감소 */
-  #wc { display:block; width:100%; height:360px; }
+    .block {
+      border:1px solid #eee;
+      border-radius:12px;
+      padding:10px;
+      margin-bottom:14px;
+      background:#fff;
+    }
 
-  /* plotly는 div height로 먹음 */
-  #chart { height:360px; }
+    #wc { display:block; width:100%; height:360px; }
+    #chart { height:360px; }
 
-  .subnote { font-size:12px; color:#666; margin-top:6px; }
-  .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; padding:1px 6px; border:1px solid #ddd; border-radius:6px; background:#fafafa; }
+    .subnote { font-size:12px; color:#666; margin-top:6px; }
 
-  .grid-2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    align-items: start;
-  }
-  @media (max-width: 900px) {
-    .grid-2 { grid-template-columns: 1fr; }
-  }
-</style>
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 
 <body>
@@ -98,7 +83,7 @@ fetch("data2.json.gz")
 
   <!-- 국/부서 -->
   <div class="row">
-      <div class="field" style="min-width:290px;">
+    <div class="field" style="min-width:290px;">
       <label>국 검색</label>
       <input id="bureauSearch" type="text" placeholder="예) 문화행정국" />
 
@@ -108,7 +93,6 @@ fetch("data2.json.gz")
       </select>
     </div>
 
-    <!-- 부서 -->
     <div class="field" style="min-width:290px;">
       <label>부서 검색</label>
       <input id="deptSearch" type="text" placeholder="예) 문화관광과" />
@@ -116,10 +100,9 @@ fetch("data2.json.gz")
       <label style="margin-top:6px;">부서 선택</label>
       <select id="deptSelect">
         <option value="">(전체)</option>
-    </select>
+      </select>
+    </div>
   </div>
-
-</div>
 
   <!-- 지표 버튼 -->
   <div class="row" id="metricBtns">
@@ -130,18 +113,14 @@ fetch("data2.json.gz")
     <button class="btn" data-metric="결재시간" type="button">결재시간(평균)</button>
   </div>
 
-  <div class="hint">
-    <!-- 선택 우선순위: <b>부서(2차)</b> 선택 시 부서 기준 → 아니면 <b>국(1차)</b> 선택 시 국 기준 → 둘 다 없으면 전체 기준 -->
-  </div>
+  <div class="hint"></div>
 
   <div class="grid-2">
-    <!-- 워드클라우드 -->
     <div class="block">
       <canvas id="wc"></canvas>
       <div class="subnote" id="wcMeta"></div>
     </div>
 
-    <!-- 월별 차트 -->
     <div class="block">
       <div id="chart"></div>
       <div class="subnote" id="chartMeta"></div>
@@ -150,6 +129,9 @@ fetch("data2.json.gz")
 </div>
 
 <script>
+/* =========================
+   Globals / State
+========================= */
 let RAW = null;
 
 let currentYear = "전체";
@@ -161,7 +143,7 @@ let bureauToDepts = new Map();
 let allDepts = [];
 
 /* =========================
-   ✅ 차트/라인 파스텔 컬러
+   Color / Units
 ========================= */
 const HLINE_COLOR = "#E5989B"; // pastel coral
 
@@ -171,59 +153,106 @@ function metricUnit(metric) {
   return "";
 }
 
-
 function metricColor(metric) {
-  if (metric === "내부") return "#A7C7E7";     // pastel blue
-  if (metric === "외부") return "#B8E0C8";     // pastel green
-  if (metric === "공개") return "#FFD6A5";     // pastel orange
-  if (metric === "첨부") return "#D6CDEA";     // pastel purple
-  if (metric === "결재시간") return "#F7B7D2"; // pastel pink
+  if (metric === "내부") return "#A7C7E7";
+  if (metric === "외부") return "#B8E0C8";
+  if (metric === "공개") return "#FFD6A5";
+  if (metric === "첨부") return "#D6CDEA";
+  if (metric === "결재시간") return "#F7B7D2";
   return "#A7C7E7";
 }
 
 /* =========================
-   ✅ 워드클라우드 튜닝(Top20에서도 차이 확)
-   - (중요) weightFactor 중복 선언 금지
+   WordCloud tuning
 ========================= */
 const WC_HEIGHT = 360;
-const WC_MIN_FONT = 18;   // 너무 크면 빽빽해짐 → 낮춰서 분포 확보
-const WC_MAX_FONT = 92;   // Top1 확 커지게
-const WC_GAMMA = 2.25;    // 클수록 상위 가중 더 커짐(Top20에서 체감↑)
+const WC_MIN_FONT = 18;
+const WC_MAX_FONT = 92;
+const WC_GAMMA = 2.25;
 const WC_BOOST_TOPK = 3;
-const WC_BOOST_MULT = [2.8, 1.9, 1.35]; // Top1/2/3
+const WC_BOOST_MULT = [2.8, 1.9, 1.35];
 
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  fetch("data2.json", { cache: "no-store", headers: { "Accept": "application/json" } })
-    .then(async r => {
-      if (!r.ok) {
-        const t = await r.text();
-        throw new Error(`HTTP ${r.status} for data2.json\n${t.slice(0,200)}`);
-      }
-      const ct = r.headers.get("content-type") || "";
-      if (!ct.includes("application/json")) {
-        const t = await r.text();
-        throw new Error(`Not JSON (content-type=${ct})\n${t.slice(0,200)}`);
-      }
-      return r.json();
-    })
-    .then(data => {
-      window.RAW = data;   // 전역으로 쓸 거면 명시적으로 window에
-      buildMappings();
-      initOptions();
-      drawWordcloud();
-      drawChart();
-    })
-    .catch(err => console.error(err));
+/* =========================
+   Data loaders
+   - choose ONE: gzip(.json.gz) or plain json(.json)
+========================= */
+async function loadJSON(url) {
+  const r = await fetch(url, { cache: "no-store", headers: { "Accept": "application/json" } });
+  if (!r.ok) {
+    const t = await r.text();
+    throw new Error(`HTTP ${r.status} for ${url}\n${t.slice(0,200)}`);
+  }
+  const ct = r.headers.get("content-type") || "";
+  if (!ct.includes("application/json")) {
+    // 서버가 HTML을 주는 케이스 즉시 식별
+    const t = await r.text();
+    throw new Error(`Not JSON (content-type=${ct}) for ${url}\n${t.slice(0,200)}`);
+  }
+  return r.json();
+}
+
+async function loadGzJSON(urlGz) {
+  const r = await fetch(urlGz, { cache: "no-store" });
+  if (!r.ok) {
+    const t = await r.text();
+    throw new Error(`HTTP ${r.status} for ${urlGz}\n${t.slice(0,200)}`);
+  }
+  const buf = await r.arrayBuffer();
+  let text;
+  try {
+    // gzip이면 ungzip이 더 정석
+    text = pako.ungzip(new Uint8Array(buf), { to: "string" });
+  } catch (e) {
+    // 일부 파일이 zlib/deflate로 만들어진 경우 대비
+    text = pako.inflate(new Uint8Array(buf), { to: "string" });
+  }
+
+  // HTML이 섞여 들어온 경우(경로 틀려서 404 페이지가 내려온 경우) 즉시 식별
+  if (text && text.trim().startsWith("<")) {
+    throw new Error(`Expected gzipped JSON but got HTML-like content from ${urlGz}\n${text.slice(0,200)}`);
+  }
+
+  return JSON.parse(text);
+}
+
+/* =========================
+   App bootstrap
+========================= */
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    // ✅ 여기서 하나만 선택
+    // RAW = await loadJSON("data2.json");
+    RAW = await loadGzJSON("data2.json.gz");
+
+    buildMappings();
+    initOptions();
+    wireButtons();
+    drawWordcloud();
+    drawChart();
+
+    window.addEventListener("resize", () => drawWordcloud());
+  } catch (err) {
+    console.error(err);
+  }
 });
-</script>
 
+/* =========================
+   Mappings / Options
+========================= */
+function pickAnyYearKey(obj) {
+  if (!obj || typeof obj !== "object") return null;
+  const keys = Object.keys(obj);
+  if (keys.includes("전체")) return "전체";
+  return keys.length ? keys[0] : null;
+}
 
 function buildMappings() {
   bureauToDepts = new Map();
   allDepts = [];
 
-  const yKey = "전체";
+  // 원본 데이터에 "전체"가 없을 수 있어 방어적으로 처리
+  const yKey = pickAnyYearKey(RAW?.wordcloud_by_dept) || "전체";
+
   const deptObj = RAW?.wordcloud_by_dept?.[yKey] || {};
   const deptNames = Object.keys(deptObj);
 
@@ -247,7 +276,8 @@ function buildMappings() {
   if (RAW?.options?.bureaus && RAW.options.bureaus.length) {
     bureaus = RAW.options.bureaus.slice();
   } else {
-    const bObj = RAW?.wordcloud_by_bureau?.[yKey] || {};
+    const yKeyB = pickAnyYearKey(RAW?.wordcloud_by_bureau) || "전체";
+    const bObj = RAW?.wordcloud_by_bureau?.[yKeyB] || {};
     bureaus = Object.keys(bObj);
   }
 
@@ -267,27 +297,21 @@ function buildMappings() {
   RAW.options.depts = allDepts.slice();
 }
 
-function formatMean(value) {
-  if (!Number.isFinite(value)) return "";
-  return value >= 100
-    ? Math.round(value).toString()
-    : value.toFixed(2);
-}
-
-
 function initOptions() {
   const bureaus = RAW?.options?.bureaus || [];
   const bSel = document.getElementById("bureauSelect");
-  const dSel = document.getElementById("deptSelect");
 
   bSel.innerHTML = `<option value="">(전체)</option>`;
   for (const b of bureaus) {
     const opt = document.createElement("option");
-    opt.value = b; opt.textContent = b;
+    opt.value = b;
+    opt.textContent = b;
     bSel.appendChild(opt);
   }
 
   rebuildDeptOptions("");
+
+  const dSel = document.getElementById("deptSelect");
 
   bSel.addEventListener("change", () => {
     selectedBureau = bSel.value || "";
@@ -335,7 +359,8 @@ function rebuildDeptOptions(bureau) {
   dSel.innerHTML = `<option value="">(전체)</option>`;
   for (const d of allowed) {
     const opt = document.createElement("option");
-    opt.value = d; opt.textContent = d;
+    opt.value = d;
+    opt.textContent = d;
     dSel.appendChild(opt);
   }
 }
@@ -355,25 +380,33 @@ function applySearchToSelect(query, selectEl) {
   }
 }
 
-document.querySelectorAll("#yearBtns .btn").forEach(b => {
-  b.addEventListener("click", () => {
-    document.querySelectorAll("#yearBtns .btn").forEach(x => x.classList.remove("active"));
-    b.classList.add("active");
-    currentYear = b.dataset.year;
-    drawWordcloud();
-    drawChart();
+/* =========================
+   Buttons
+========================= */
+function wireButtons() {
+  document.querySelectorAll("#yearBtns .btn").forEach(b => {
+    b.addEventListener("click", () => {
+      document.querySelectorAll("#yearBtns .btn").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      currentYear = b.dataset.year;
+      drawWordcloud();
+      drawChart();
+    });
   });
-});
 
-document.querySelectorAll("#metricBtns .btn").forEach(b => {
-  b.addEventListener("click", () => {
-    document.querySelectorAll("#metricBtns .btn").forEach(x => x.classList.remove("active"));
-    b.classList.add("active");
-    currentMetric = b.dataset.metric;
-    drawChart();
+  document.querySelectorAll("#metricBtns .btn").forEach(b => {
+    b.addEventListener("click", () => {
+      document.querySelectorAll("#metricBtns .btn").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      currentMetric = b.dataset.metric;
+      drawChart();
+    });
   });
-});
+}
 
+/* =========================
+   Wordcloud
+========================= */
 function getWordcloudList() {
   const y = currentYear;
 
@@ -390,15 +423,10 @@ function getWordcloudList() {
   return { list: list || [["데이터없음", 1]], scope: "전체", name: "전체" };
 }
 
-/* =========================
-   ✅ WordCloud: 여백 줄이고 Top20 차이 키우기
-   - gridSize를 살짝 키워 과밀 방지
-   - rotateRatio 낮게 유지
-========================= */
 function drawWordcloud() {
   if (!RAW) return;
 
-  const { list: rawList, scope, name } = getWordcloudList();
+  const { list: rawList } = getWordcloudList();
   const canvas = document.getElementById("wc");
   const meta = document.getElementById("wcMeta");
 
@@ -436,35 +464,33 @@ function drawWordcloud() {
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const gridSize = Math.max(8, Math.floor(canvas.width / 130)); // 과밀 방지
+  const gridSize = Math.max(4, Math.floor(canvas.width / 200));
 
   requestAnimationFrame(() => {
     WordCloud(canvas, {
       list,
-      gridSize: Math.max(4, Math.floor(canvas.width / 200)),
+      gridSize,
       shrinkToFit: true,
       drawOutOfBound: false,
       weightFactor,
-      weightFactor: function (w) {
-        return Math.pow(w, 0.45) * 1.5;
-      },
       fontFamily: "Malgun Gothic, Arial",
       backgroundColor: "#fff",
       color: "random-dark",
       rotateRatio: 0.02,
-      rotationSteps: 2,
-      drawOutOfBound: false,
-      shrinkToFit: true
+      rotationSteps: 2
     });
   });
 
-  
-  meta.textContent =
-    `상위 ${list.length}개`;
-    
+  meta.textContent = `상위 ${list.length}개`;
 }
 
-window.addEventListener("resize", () => drawWordcloud());
+/* =========================
+   Chart
+========================= */
+function formatMean(value) {
+  if (!Number.isFinite(value)) return "";
+  return value >= 100 ? Math.round(value).toString() : value.toFixed(2);
+}
 
 function filteredRecords() {
   const recs = RAW?.records || [];
@@ -482,9 +508,6 @@ function filteredRecords() {
   return out;
 }
 
-/* =========================
-   ✅ Plotly: 파스텔 막대 + 평균선 색 통일
-========================= */
 function drawChart() {
   if (!RAW) return;
 
@@ -494,7 +517,7 @@ function drawChart() {
   const get = (r, k) => (r && r[k] !== undefined) ? r[k] : null;
 
   function countByMonth(predicate) {
-    return months.map(m => recs.filter(r => r["월"] === m && predicate(r)).length);
+    return months.map(m => recs.filter(r => Number(r["월"]) === m && predicate(r)).length);
   }
 
   let y = [];
@@ -515,7 +538,7 @@ function drawChart() {
   } else if (currentMetric === "결재시간") {
     y = months.map(m => {
       const arr = recs
-        .filter(r => r["월"] === m)
+        .filter(r => Number(r["월"]) === m)
         .map(r => Number(get(r, "결재시간_영업일")))
         .filter(v => Number.isFinite(v));
       return arr.length ? (arr.reduce((a,b)=>a+b,0)/arr.length) : null;
@@ -527,7 +550,6 @@ function drawChart() {
     if (v === null || v === undefined || !Number.isFinite(v)) return "N/A";
     return (v <= 100) ? v.toFixed(2) : v.toFixed(0);
   });
-
 
   const validY = y.filter(v => v !== null && v !== undefined && Number.isFinite(v));
   const meanY = validY.length ? validY.reduce((a,b)=>a+b,0) / validY.length : null;
@@ -555,16 +577,13 @@ function drawChart() {
     xanchor: "left"
   }] : [];
 
-
-  
-
   Plotly.react("chart", [{
     type: "bar",
     x: months,
     y: y,
     marker: { color: metricColor(currentMetric) },
-  hovertemplate: `${yTitle}: %{customdata}<extra></extra>`,
-  customdata: yHover
+    hovertemplate: `${yTitle}: %{customdata}<extra></extra>`,
+    customdata: yHover
   }], {
     margin:{l:60,r:110,t:20,b:40},
     xaxis: {
@@ -572,26 +591,16 @@ function drawChart() {
       tickmode: "linear",
       tick0: 1,
       dtick: 1,
-      tickvals: months,        // [1,2,3,...,12]
+      tickvals: months,
       ticktext: months.map(m => String(m))
     },
     yaxis:{title:yTitle, rangemode:"tozero"},
     shapes,
     annotations
   }, {responsive:true});
-
-  const hasBureau = recs.length && ("국" in recs[0]);
-  const hasDept = recs.length && ("부서명" in recs[0]);
-
-  const filterNote = (hasBureau || hasDept)
-    ? ` / 필터: ${selectedBureau ? ("국=" + selectedBureau) : "국=전체"} , ${selectedDept ? ("부서=" + selectedDept) : "부서=전체"}`
-    : " / (※ records에 국/부서가 없어서 월별차트는 연도만 반영)";
-
-  // document.getElementById("chartMeta").textContent =
-  //   `월별 지표: ${yTitle} / 연도: ${currentYear} / 표본수: ${recs.length.toLocaleString()}건${filterNote}`;
 }
 </script>
-<script src="./nav.js"></script>
 
+<script src="./nav.js"></script>
 </body>
 </html>
