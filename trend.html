@@ -19,7 +19,7 @@
     .checks { display:flex; gap:12px; flex-wrap:wrap; }
 
     /* ✅ 가로폭 줄이기 + 중앙정렬 (원하면 85% 숫자만 조정) */
-    #bar { width:85%; height:620px; margin:0 auto; }
+    #bar { width:90%; height:620px; margin:0 auto; }
 
     .row2 { display:flex; gap:16px; flex-wrap:wrap; }
     #trend, #approver { flex:1; min-width:480px; height:520px; }
@@ -36,7 +36,7 @@
 
       <div class="row">
         <div class="card" style="min-width:360px; flex:1;">
-          <label>부서(검색 가능)</label>
+          <label>부서</label>
           <input id="deptSearch" type="text" placeholder="부서를 검색하세요" />
           <select id="dept"></select>
         </div>
@@ -512,3 +512,4 @@ init().catch(err => {
   <script src="./nav.js"></script>
 </body>
 </html>
+
