@@ -126,7 +126,6 @@ function render(rangeKey){
   const note = document.getElementById("rangeNote");
 
   const hasAny = (ds.PROD && ds.PROD.length) || (ds.TIME && ds.TIME.length) || (ds.OPEN && ds.OPEN.length);
-  note.textContent = hasAny ? `선택: ${rangeKey === "ALL" ? "전체" : rangeKey}` : `선택: ${rangeKey} (데이터 없음)`;
 
   drawBar("c1", ds.PROD || [], "생산문서수_평균", "", COLORS.PROD);
   drawBar("c2", ds.TIME || [], "결재시간_평균",   "", COLORS.TIME);
