@@ -413,11 +413,11 @@ function render() {
       tickmode: "array",
       tickvals: ticks.tickvals,
       ticktext: ticks.ticktext,
-      automargin: true   /* ✅ 오타 수정 + 자동 여백 */
+      automargin: true
     },
     shapes: shapesBar,
     annotations: [],
-    margin: { l:80, r:40, t:80, b:160 } /* ✅ 좌측 여백 확대 */
+    margin: { l:80, r:40, t:80, b:160 }
   }, {responsive:true});
 
   renderNameBar(dept, years, topN);
@@ -433,10 +433,15 @@ function render() {
 }
 
 /* ===== 부서 옵션 ===== */
+/**
+ * 요구사항:
+ * - 검색 결과가 2개 이상이면: 현재 선택(current) 유지(가능하면 유지)
+ * - 검색 결과가 1개이면: 자동으로 그 부서를 선택해서 바로 보여주기
+ */
 function updateDeptOptions(searchText) {
   const sel = document.getElementById("dept");
-  const current = sel.value;
-  const q = String(searchText||"").toLowerCase().trim();
+  const current = sel.value; // 기존 선택값(유지 목적)
+  const q = String(searchText || "").toLowerCase().trim();
 
   const depts = (DATA.depts || []).filter(d => d.toLowerCase().includes(q));
 
@@ -455,8 +460,20 @@ function updateDeptOptions(searchText) {
     sel.appendChild(opt);
   }
 
-  if (current && depts.includes(current)) sel.value = current;
-  else sel.value = "";
+  // ✅ 선택값 결정 로직
+  if (depts.length === 1) {
+    // 검색 결과가 1개면 자동 선택
+    sel.value = depts[0];
+    return;
+  }
+
+  // 검색 결과가 2개 이상이면 "현재 유지"
+  if (current && depts.includes(current)) {
+    sel.value = current;
+  } else {
+    // 기존 선택이 검색 결과에 없으면 전체(빈값)
+    sel.value = "";
+  }
 }
 
 /* ===== 초기화 ===== */
@@ -479,6 +496,8 @@ async function init() {
   deptSearchEl.addEventListener("keydown", (e) => {
     if (e.key !== "Enter") return;
     e.preventDefault();
+
+    // ✅ Enter 시: 결과 1개면 자동선택(updateDeptOptions에서 처리) 후 render
     updateDeptOptions(deptSearchEl.value);
     render();
   });
@@ -512,4 +531,3 @@ init().catch(err => {
   <script src="./nav.js"></script>
 </body>
 </html>
-
